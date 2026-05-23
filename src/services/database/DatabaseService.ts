@@ -1,60 +1,32 @@
-import {QuickSQLite} from 'react-native-quick-sqlite';
-import {DB_NAME, MIGRATIONS} from './schema';
-
 /**
- * DatabaseService — singleton that manages the SQLite connection
- * and runs schema migrations on first open.
+ * DatabaseService — thin wrapper around AsyncStorage that provides
+ * a simple key/value store with JSON serialization.
+ *
+ * We use AsyncStorage instead of a C++ SQLite library to avoid
+ * NDK/CMake build issues on Windows. For this app's data volume
+ * AsyncStorage is perfectly adequate.
  */
-class DatabaseService {
-  private initialized = false;
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-  /** Open the database and run migrations (idempotent). */
-  init(): void {
-    if (this.initialized) {
-      return;
+export const DatabaseService = {
+  async get<T>(key: string): Promise<T | null> {
+    const raw = await AsyncStorage.getItem(key);
+    if (raw === null) {
+      return null;
     }
-    QuickSQLite.open(DB_NAME);
-    this.runMigrations();
-    this.initialized = true;
-  }
+    return JSON.parse(raw) as T;
+  },
 
-  /** Close the database connection. */
-  close(): void {
-    if (this.initialized) {
-      QuickSQLite.close(DB_NAME);
-      this.initialized = false;
-    }
-  }
+  async set<T>(key: string, value: T): Promise<void> {
+    await AsyncStorage.setItem(key, JSON.stringify(value));
+  },
 
-  /**
-   * Execute a SQL statement that modifies data (INSERT / UPDATE / DELETE).
-   */
-  execute(sql: string, params: any[] = []): void {
-    this.init();
-    QuickSQLite.execute(DB_NAME, sql, params);
-  }
+  async remove(key: string): Promise<void> {
+    await AsyncStorage.removeItem(key);
+  },
 
-  /**
-   * Execute a SELECT statement and return typed rows.
-   */
-  query<T = Record<string, any>>(sql: string, params: any[] = []): T[] {
-    this.init();
-    const result = QuickSQLite.execute(DB_NAME, sql, params);
-    return (result.rows?._array ?? []) as T[];
-  }
-
-  /** Run all migration statements in order. */
-  private runMigrations(): void {
-    for (const sql of MIGRATIONS) {
-      try {
-        QuickSQLite.execute(DB_NAME, sql);
-      } catch (error) {
-        console.error('[DB] Migration failed:', sql, error);
-        throw error;
-      }
-    }
-  }
-}
-
-// Export a single shared instance
-export const databaseService = new DatabaseService();
+  async getAllKeys(): Promise<string[]> {
+    const keys = await AsyncStorage.getAllKeys();
+    return [...keys];
+  },
+};

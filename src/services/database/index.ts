@@ -1,2 +1,2 @@
-export {databaseService} from './DatabaseService';
+export {DatabaseService} from './DatabaseService';
 export {StormEventRepository} from './StormEventRepository';
