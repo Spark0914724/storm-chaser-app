@@ -12,11 +12,15 @@ export type StormType =
 
 export interface WeatherConditions {
   temperature: number;       // °C
+  feelsLike: number;         // °C
   windSpeed: number;         // km/h
   windDirection: number;     // degrees
+  windGusts: number;         // km/h
   precipitation: number;     // mm
   humidity: number;          // %
   pressure: number;          // hPa
+  visibility: number;        // km
+  uvIndex: number;
   weatherCode: number;       // WMO weather code
   description: string;
 }
