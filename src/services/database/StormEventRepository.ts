@@ -1,4 +1,3 @@
-import {type Scalar} from '@op-engineering/op-sqlite';
 import {databaseService} from './DatabaseService';
 import {StormEvent, NewStormEvent, StormType} from '../../models/StormEvent';
 import {generateId} from '../../utils/generateId';
@@ -178,7 +177,7 @@ export const StormEventRepository = {
     values.push(id);
     databaseService.execute(
       `UPDATE storm_events SET ${fields.join(', ')} WHERE id = ?`,
-      values as Scalar[],
+      values,
     );
   },
 

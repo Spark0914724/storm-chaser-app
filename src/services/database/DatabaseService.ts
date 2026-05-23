@@ -1,4 +1,4 @@
-import {open, type DB, type Scalar} from '@op-engineering/op-sqlite';
+import {QuickSQLite} from 'react-native-quick-sqlite';
 import {DB_NAME, MIGRATIONS} from './schema';
 
 /**
@@ -6,51 +6,48 @@ import {DB_NAME, MIGRATIONS} from './schema';
  * and runs schema migrations on first open.
  */
 class DatabaseService {
-  private db: DB | null = null;
+  private initialized = false;
 
-  /** Open (or reuse) the database connection and run pending migrations. */
-  open(): DB {
-    if (this.db) {
-      return this.db;
+  /** Open the database and run migrations (idempotent). */
+  init(): void {
+    if (this.initialized) {
+      return;
     }
-    this.db = open({name: DB_NAME});
-    this.runMigrations(this.db);
-    return this.db;
+    QuickSQLite.open(DB_NAME);
+    this.runMigrations();
+    this.initialized = true;
   }
 
   /** Close the database connection. */
   close(): void {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
+    if (this.initialized) {
+      QuickSQLite.close(DB_NAME);
+      this.initialized = false;
     }
   }
 
   /**
    * Execute a SQL statement that modifies data (INSERT / UPDATE / DELETE).
    */
-  execute(sql: string, params: Scalar[] = []): void {
-    const database = this.open();
-    database.executeSync(sql, params);
+  execute(sql: string, params: any[] = []): void {
+    this.init();
+    QuickSQLite.execute(DB_NAME, sql, params);
   }
 
   /**
    * Execute a SELECT statement and return typed rows.
    */
-  query<T = Record<string, Scalar>>(
-    sql: string,
-    params: Scalar[] = [],
-  ): T[] {
-    const database = this.open();
-    const result = database.executeSync(sql, params);
-    return (result.rows ?? []) as T[];
+  query<T = Record<string, any>>(sql: string, params: any[] = []): T[] {
+    this.init();
+    const result = QuickSQLite.execute(DB_NAME, sql, params);
+    return (result.rows?._array ?? []) as T[];
   }
 
   /** Run all migration statements in order. */
-  private runMigrations(database: DB): void {
+  private runMigrations(): void {
     for (const sql of MIGRATIONS) {
       try {
-        database.executeSync(sql);
+        QuickSQLite.execute(DB_NAME, sql);
       } catch (error) {
         console.error('[DB] Migration failed:', sql, error);
         throw error;
