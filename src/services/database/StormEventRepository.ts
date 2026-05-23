@@ -1,3 +1,4 @@
+import {type Scalar} from '@op-engineering/op-sqlite';
 import {databaseService} from './DatabaseService';
 import {StormEvent, NewStormEvent, StormType} from '../../models/StormEvent';
 import {generateId} from '../../utils/generateId';
@@ -65,7 +66,7 @@ const rowToStormEvent = (row: StormEventRow): StormEvent => ({
  */
 export const StormEventRepository = {
   /** Insert a new storm event. Returns the saved StormEvent with generated id. */
-  async create(event: NewStormEvent): Promise<StormEvent> {
+  create(event: NewStormEvent): StormEvent {
     const id = generateId();
     const createdAt = new Date().toISOString();
     const {
@@ -79,7 +80,7 @@ export const StormEventRepository = {
       capturedAt,
     } = event;
 
-    await databaseService.execute(
+    databaseService.execute(
       `INSERT INTO storm_events (
         id, photo_uri, storm_type, title, notes,
         latitude, longitude, altitude, location_name,
@@ -124,16 +125,16 @@ export const StormEventRepository = {
   },
 
   /** Fetch all storm events, newest first. */
-  async findAll(): Promise<StormEvent[]> {
-    const rows = await databaseService.query<StormEventRow>(
+  findAll(): StormEvent[] {
+    const rows = databaseService.query<StormEventRow>(
       'SELECT * FROM storm_events ORDER BY created_at DESC',
     );
     return rows.map(rowToStormEvent);
   },
 
   /** Fetch a single storm event by id. Returns null if not found. */
-  async findById(id: string): Promise<StormEvent | null> {
-    const rows = await databaseService.query<StormEventRow>(
+  findById(id: string): StormEvent | null {
+    const rows = databaseService.query<StormEventRow>(
       'SELECT * FROM storm_events WHERE id = ? LIMIT 1',
       [id],
     );
@@ -141,19 +142,19 @@ export const StormEventRepository = {
   },
 
   /** Fetch storm events filtered by storm type. */
-  async findByType(stormType: StormType): Promise<StormEvent[]> {
-    const rows = await databaseService.query<StormEventRow>(
+  findByType(stormType: StormType): StormEvent[] {
+    const rows = databaseService.query<StormEventRow>(
       'SELECT * FROM storm_events WHERE storm_type = ? ORDER BY created_at DESC',
       [stormType],
     );
     return rows.map(rowToStormEvent);
   },
 
-  /** Update notes and title for an existing storm event. */
-  async update(
+  /** Update title, notes, or stormType for an existing storm event. */
+  update(
     id: string,
     updates: Partial<Pick<StormEvent, 'title' | 'notes' | 'stormType'>>,
-  ): Promise<void> {
+  ): void {
     const fields: string[] = [];
     const values: unknown[] = [];
 
@@ -175,23 +176,20 @@ export const StormEventRepository = {
     }
 
     values.push(id);
-    await databaseService.execute(
+    databaseService.execute(
       `UPDATE storm_events SET ${fields.join(', ')} WHERE id = ?`,
-      values,
+      values as Scalar[],
     );
   },
 
   /** Delete a storm event by id. */
-  async delete(id: string): Promise<void> {
-    await databaseService.execute(
-      'DELETE FROM storm_events WHERE id = ?',
-      [id],
-    );
+  delete(id: string): void {
+    databaseService.execute('DELETE FROM storm_events WHERE id = ?', [id]);
   },
 
   /** Return the total count of saved storm events. */
-  async count(): Promise<number> {
-    const rows = await databaseService.query<{total: number}>(
+  count(): number {
+    const rows = databaseService.query<{total: number}>(
       'SELECT COUNT(*) as total FROM storm_events',
     );
     return rows[0]?.total ?? 0;
